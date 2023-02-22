@@ -32,6 +32,10 @@ module.exports = async (releaseType, version) => {
   const prerelease = core.getBooleanInput('pre-release')
   const identifier = core.getInput('pre-release-identifier')
 
+
+  console.log("Version for semver - ", version)
+  console.log("Converted version - ", convertVersion[version])
+
   if (version) {
 
     newVersion = semver.inc(convertVersion[version], (prerelease ? 'prerelease' : releaseType), identifier)
