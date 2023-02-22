@@ -34,7 +34,8 @@ module.exports = async (releaseType, version) => {
 
 
   console.log("Version for semver - ", version)
-  console.log("Converted version - ", convertVersion[releaseType])
+  console.log("ReleaseType - ", releaseType)
+  console.log("Converted releaseType - ", convertVersion[releaseType])
 
   if (version) {
 
