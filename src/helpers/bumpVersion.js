@@ -34,11 +34,11 @@ module.exports = async (releaseType, version) => {
 
 
   console.log("Version for semver - ", version)
-  console.log("Converted version - ", convertVersion[version])
+  console.log("Converted version - ", convertVersion[releaseType])
 
   if (version) {
 
-    newVersion = semver.inc(convertVersion[version], (prerelease ? 'prerelease' : releaseType), identifier)
+    newVersion = semver.inc(version, (prerelease ? 'prerelease' : convertVersion[releaseType]), identifier)
   } else {
 
     const fallbackVersion = core.getInput('fallback-version')
