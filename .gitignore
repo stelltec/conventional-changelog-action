@@ -67,4 +67,4 @@ typings/
 .next
 
 # build output
-lib
+#lib
