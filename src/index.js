@@ -1,11 +1,19 @@
 const core = require('@actions/core')
 const conventionalRecommendedBump = require('conventional-recommended-bump')
 const path = require('path')
+const AWS = require('aws-sdk');
+const fs = require('fs');
 
 const getVersioning = require('./version')
 const git = require('./helpers/git')
 const changelog = require('./helpers/generateChangelog')
 const requireScript = require('./helpers/requireScript')
+
+// Set the region 
+AWS.config.update({ region: 'eu-west-1' });
+
+// Create S3 service object
+const s3 = new AWS.S3({ apiVersion: '2006-03-01' });
 
 async function handleVersioningByExtension(ext, file, versionPath, releaseType) {
   const versioning = getVersioning(ext)
@@ -171,6 +179,28 @@ async function run() {
       if (outputFile !== 'false') {
         // Generate the changelog
         await changelog.generateFileChangelog(tagPrefix, preset, newVersion, outputFile, releaseCount, config, gitPath)
+
+        // Load file to be uploaded
+        const fileStream = fs.createReadStream(outputFile);
+        fileStream.on('error', function (err) {
+          console.log('File Error', err);
+        });
+
+        // Set parameters for S3 upload
+        const uploadParams = {
+          Bucket: 'aerlytix-code-changelogs',
+          Key: path.basename(outputFile),
+          Body: fileStream
+        };
+
+        // Call S3 to retrieve upload file to specified bucket
+        s3.upload(uploadParams, function (err, data) {
+          if (err) {
+            console.log("Error", err);
+          } if (data) {
+            console.log("Upload Success", data.Location);
+          }
+        });
       }
 
       if (!skipCommit) {
