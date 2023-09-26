@@ -23,12 +23,12 @@ inputs:
 
   git-user-name:
     description: "The git user.name to use for the commit"
-    default: "Conventional Changelog Action"
+    default: "st-m-2"
     required: false
 
   git-user-email:
     description: "The git user.email to use for the commit"
-    default: "conventional.changelog.action@github.com"
+    default: "support@aerlytix.com"
     required: false
 
   git-pull-method:
