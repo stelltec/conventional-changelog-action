@@ -3,6 +3,22 @@ const semver = require('semver')
 
 const requireScript = require('./requireScript')
 
+const convertVersion = {
+  'major': 'premajor',
+  'minor': 'preminor',
+  'patch': 'prepatch',
+  'prerelease': 'prerelease'
+}
+
+// const convertVersion = (version) => {
+//   switch (version) {
+//     case "major":
+//       return "premajor";
+//     default:
+//       throw new Error
+//   }
+// }
+
 /**
  * Bumps the given version with the given release type
  *
@@ -16,8 +32,14 @@ module.exports = async (releaseType, version) => {
   const prerelease = core.getBooleanInput('pre-release')
   const identifier = core.getInput('pre-release-identifier')
 
+
+  console.log("Version for semver - ", version)
+  console.log("ReleaseType - ", releaseType)
+  console.log("Converted releaseType - ", convertVersion[releaseType])
+
   if (version) {
-    newVersion = semver.inc(version, (prerelease ? 'prerelease' : releaseType), identifier)
+
+    newVersion = semver.inc(version, (prerelease ? 'prerelease' : convertVersion[releaseType]), identifier)
   } else {
 
     const fallbackVersion = core.getInput('fallback-version')

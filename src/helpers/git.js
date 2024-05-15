@@ -187,9 +187,9 @@ module.exports = new (class Git {
         }
       }
 
-      if(!SKIPPED_TAG) {
+      if (!SKIPPED_TAG) {
         expectedCommands.push(`git tag -a ${EXPECTED_TAG} -m "${EXPECTED_TAG}"`)
-      } 
+      }
 
       if (!EXPECTED_NO_PUSH) {
         expectedCommands.push(`git push origin ${branch} --follow-tags`)

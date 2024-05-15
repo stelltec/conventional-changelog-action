@@ -1,27 +1,32 @@
 const core = require('@actions/core')
 const conventionalRecommendedBump = require('conventional-recommended-bump')
 const path = require('path')
+const AWS = require('aws-sdk');
+const fs = require('fs');
 
 const getVersioning = require('./version')
 const git = require('./helpers/git')
 const changelog = require('./helpers/generateChangelog')
 const requireScript = require('./helpers/requireScript')
-const { loadPreset, loadPresetConfig } = require('./helpers/load-preset')
 
-async function handleVersioningByExtension(ext, file, versionPath, releaseType, skipBump) {
-  const fileLocation = path.resolve(process.cwd(), file)
-  const versioning = getVersioning(ext, fileLocation)
+// Set the region 
+AWS.config.update({ region: 'eu-west-1' });
 
-  versioning.init(fileLocation, versionPath)
+// Create S3 service object
+const s3 = new AWS.S3({ apiVersion: '2006-03-01' });
+
+async function handleVersioningByExtension(ext, file, versionPath, releaseType) {
+  const versioning = getVersioning(ext)
+
+  // File type not supported
+  if (versioning === null) {
+    throw new Error(`File extension "${ext}" from file "${file}" is not supported`)
+  }
+
+  versioning.init(path.resolve(process.cwd(), file), versionPath)
 
   // Bump the version in the package.json
-  if(skipBump){
-    // If we are skipping the bump, we either use the old version or alternatively the fallback version
-    const fallbackVersion = core.getInput('fallback-version')
-    versioning.newVersion = versioning.oldVersion || fallbackVersion
-  } else {
-    await versioning.bump(releaseType)
-  }
+  await versioning.bump(releaseType)
 
   return versioning
 }
@@ -49,11 +54,9 @@ async function run() {
     const preChangelogGenerationFile = core.getInput('pre-changelog-generation')
     const gitUrl = core.getInput('git-url')
     const gitPath = core.getInput('git-path')
-    const infile = core.getInput('input-file')
     const skipCi = core.getBooleanInput('skip-ci')
     const createSummary = core.getBooleanInput('create-summary')
     const prerelease = core.getBooleanInput('pre-release')
-    const skipBump = core.getBooleanInput('skip-bump')
 
     if (skipCi) {
       gitCommitMessage += ' [skip ci]'
@@ -77,189 +80,198 @@ async function run() {
       core.info(`Using "${preCommitFile}" as pre-commit script`)
     }
 
-    if (infile) {
-      core.info(`Using "${infile}" as input file`)
-    }
-
     if (preChangelogGenerationFile) {
       core.info(`Using "${preChangelogGenerationFile}" as pre-changelog-generation script`)
     }
 
-    if(skipBump) {
-      core.info('Skipping bumping the version')
-    }
-
     core.info(`Skipping empty releases is "${skipEmptyRelease ? 'enabled' : 'disabled'}"`)
     core.info(`Skipping the update of the version file is "${skipVersionFile ? 'enabled' : 'disabled'}"`)
-
-    await git.init()
 
     if (!skipGitPull) {
       core.info('Pull to make sure we have the full git history')
       await git.pull()
     }
 
-    const config = await loadPresetConfig(preset, conventionalConfigFile && requireScript(conventionalConfigFile))
+    const config = conventionalConfigFile && requireScript(conventionalConfigFile)
 
-    const recommendation = await conventionalRecommendedBump({
-      preset: await loadPreset(preset),
-      tagPrefix,
-      config,
-      skipUnstable: !prerelease,
-      path: gitPath
-    })
-
-    core.info(`Recommended release type: ${recommendation.releaseType}`)
-
-    // If we have a reason also log it
-    if (recommendation.reason) {
-      core.info(`Because: ${recommendation.reason}`)
-    }
-
-    let newVersion
-    let oldVersion
-
-    // If skipVersionFile or skipCommit is true we use GIT to determine the new version because
-    // skipVersionFile can mean there is no version file and skipCommit can mean that the user
-    // is only interested in tags
-    if (skipVersionFile || skipCommit) {
-      core.info('Using GIT to determine the new version')
-      const versioning = await handleVersioningByExtension(
-        'git',
-        versionFile,
-        versionPath,
-        recommendation.releaseType,
-        skipBump
-      )
-
-      oldVersion = versioning.oldVersion
-      newVersion = versioning.newVersion
-    } else {
-      const files = versionFile.split(',').map((f) => f.trim())
-      core.info(`Files to bump: ${files.join(', ')}`)
-
-      const versioning = await Promise.all(
-        files.map((file) => {
-          const fileExtension = file.split('.').pop()
-          core.info(`Bumping version to file "${file}" with extension "${fileExtension}"`)
-
-          return handleVersioningByExtension(fileExtension, file, versionPath, recommendation.releaseType, skipBump)
-        })
-      )
-      oldVersion = versioning[0].oldVersion
-      newVersion = versioning[0].newVersion
-    }
-
-    let gitTag = `${tagPrefix}${newVersion}`
-
-    if (preChangelogGenerationFile) {
-      const preChangelogGenerationScript = requireScript(preChangelogGenerationFile)
-
-      // Double check if we want to update / do something with the tag
-      if (preChangelogGenerationScript && preChangelogGenerationScript.preTagGeneration) {
-        const modifiedTag = await preChangelogGenerationScript.preTagGeneration(gitTag)
-
-        if (modifiedTag) {
-          core.info(`Using modified tag "${modifiedTag}"`)
-          gitTag = modifiedTag
-        }
+    conventionalRecommendedBump({ preset, tagPrefix, config, skipUnstable: !prerelease }, async (error, recommendation) => {
+      if (error) {
+        core.setFailed(error.message)
+        return
       }
-    }
 
-    // Generate the string changelog
-    const stringChangelog = await changelog.generateStringChangelog(tagPrefix, preset, newVersion, 1, config, gitPath, !prerelease)
-    core.info('Changelog generated')
-    core.info(stringChangelog)
+      core.info(`Recommended release type: ${recommendation.releaseType}`)
 
-    // Removes the version number from the changelog
-    const cleanChangelog = stringChangelog.split('\n').slice(3).join('\n').trim()
+      // If we have a reason also log it
+      if (recommendation.reason) {
+        core.info(`Because: ${recommendation.reason}`)
+      }
 
-    if (skipEmptyRelease && cleanChangelog === '') {
-      core.info('Generated changelog is empty and skip-on-empty has been activated so we skip this step')
-      core.setOutput('old_version', oldVersion)
-      core.setOutput('version', oldVersion)
-      core.setOutput('skipped', 'true')
-      return
-    }
+      let newVersion
+      let oldVersion
 
-    core.info(`New version: ${newVersion}`)
+      // If skipVersionFile or skipCommit is true we use GIT to determine the new version because
+      // skipVersionFile can mean there is no version file and skipCommit can mean that the user
+      // is only interested in tags
+      if (skipVersionFile || skipCommit) {
+        core.info('Using GIT to determine the new version')
+        const versioning = await handleVersioningByExtension(
+          'git',
+          versionFile,
+          versionPath,
+          recommendation.releaseType,
+        )
 
-    // If output file === 'false' we don't write it to file
-    if (outputFile !== 'false') {
-      // Generate the changelog
-      await changelog.generateFileChangelog(tagPrefix, preset, newVersion, outputFile, releaseCount, config, gitPath, infile)
-    }
+        newVersion = versioning.newVersion
+        oldVersion = versioning.oldVersion
 
-    if (!skipCommit) {
-      // Add changed files to git
-      if (preCommitFile) {
-        const preCommitScript = requireScript(preCommitFile)
+      } else {
+        const files = versionFile.split(',').map((f) => f.trim())
+        core.info(`Files to bump: ${files.join(', ')}`)
 
-        // Double check if the file exists and the export exists
-        if (preCommitScript && preCommitScript.preCommit) {
-          await preCommitScript.preCommit({
-            tag: gitTag,
-            version: newVersion
-          })
+        const versioning = await Promise.all(
+          files.map((file) => {
+            const fileExtension = file.split('.').pop()
+            core.info(`Bumping version to file "${file}" with extension "${fileExtension}"`)
+
+            return handleVersioningByExtension(fileExtension, file, versionPath, recommendation.releaseType)
+          }),
+        )
+
+        newVersion = versioning[0].newVersion
+        oldVersion = versioning[0].oldVersion
+      }
+
+      let gitTag = `${tagPrefix}${newVersion}`
+
+      if (preChangelogGenerationFile) {
+        const preChangelogGenerationScript = requireScript(preChangelogGenerationFile)
+
+        // Double check if we want to update / do something with the tag
+        if (preChangelogGenerationScript && preChangelogGenerationScript.preTagGeneration) {
+          const modifiedTag = await preChangelogGenerationScript.preTagGeneration(gitTag)
+
+          if (modifiedTag) {
+            core.info(`Using modified tag "${modifiedTag}"`)
+            gitTag = modifiedTag
+          }
         }
       }
 
-      await git.add('.')
-      await git.commit(gitCommitMessage.replace('{version}', gitTag))
-    }
+      // Generate the string changelog
+      const stringChangelog = await changelog.generateStringChangelog(tagPrefix, preset, newVersion, 1, config, gitPath, !prerelease)
+      core.info('Changelog generated')
+      core.info(stringChangelog)
 
-    // Create the new tag
-    if (!skipTag) {
-      await git.createTag(gitTag)
-    } else {
-      core.info('We not going to the tag the GIT changes')
-    }
+      // Removes the version number from the changelog
+      const cleanChangelog = stringChangelog.split('\n').slice(3).join('\n').trim()
 
-    if (gitPush) {
+      if (skipEmptyRelease && cleanChangelog === '') {
+        core.info('Generated changelog is empty and skip-on-empty has been activated so we skip this step')
+        core.setOutput('version', oldVersion)
+        core.setOutput('skipped', 'true')
+        return
+      }
+
+      core.info(`New version: ${newVersion}`)
+
+      // If output file === 'false' we don't write it to file
+      if (outputFile !== 'false') {
+        // Generate the changelog
+        await changelog.generateFileChangelog(tagPrefix, preset, newVersion, outputFile, releaseCount, config, gitPath)
+
+        // Load file to be uploaded
+        const fileStream = fs.createReadStream(outputFile);
+        fileStream.on('error', function (err) {
+          console.log('File Error', err);
+        });
+
+        // Set parameters for S3 upload
+        const uploadParams = {
+          Bucket: 'aerlytix-code-changelogs',
+          Key: path.basename(outputFile),
+          Body: fileStream
+        };
+
+        // Call S3 to retrieve upload file to specified bucket
+        s3.upload(uploadParams, function (err, data) {
+          if (err) {
+            console.log("Error", err);
+          } if (data) {
+            console.log("Upload Success", data.Location);
+          }
+        });
+      }
+
+      if (!skipCommit) {
+        // Add changed files to git
+        if (preCommitFile) {
+          const preCommitScript = requireScript(preCommitFile)
+
+          // Double check if the file exists and the export exists
+          if (preCommitScript && preCommitScript.preCommit) {
+            await preCommitScript.preCommit({
+              tag: gitTag,
+              version: newVersion,
+            })
+          }
+        }
+
+        await git.add('.')
+        await git.commit(gitCommitMessage.replace('{version}', gitTag))
+      }
+
+      // Create the new tag
+      if (!skipTag)
+        await git.createTag(gitTag)
+      else
+        core.info('We not going to the tag the GIT changes')
+
+      if (gitPush) {
+        try {
+          core.info('Push all changes')
+          await git.push(gitBranch)
+
+        } catch (error) {
+          console.error(error)
+
+          core.setFailed(error)
+
+          return
+        }
+
+      } else {
+        core.info('We not going to push the GIT changes')
+      }
+
+      // Set outputs so other actions (for example actions/create-release) can use it
+      core.setOutput('changelog', stringChangelog)
+      core.setOutput('clean_changelog', cleanChangelog)
+      core.setOutput('version', newVersion)
+      core.setOutput('tag', gitTag)
+      core.setOutput('skipped', 'false')
+
+      if (createSummary) {
+        try {
+          await core.summary
+            .addHeading(gitTag, 2)
+            .addRaw(cleanChangelog)
+            .write()
+        } catch (err) {
+          core.warning(`Was unable to create summary! Error: "${err}"`,)
+        }
+      }
+
       try {
-        core.info('Push all changes')
-        await git.push(gitBranch)
+        // If we are running in test mode we use this to validate everything still runs
+        git.testHistory(gitBranch)
 
       } catch (error) {
         console.error(error)
 
         core.setFailed(error)
-
-        return
       }
-
-    } else {
-      core.info('We not going to push the GIT changes')
-    }
-
-    // Set outputs so other actions (for example actions/create-release) can use it
-    core.setOutput('changelog', stringChangelog)
-    core.setOutput('clean_changelog', cleanChangelog)
-    core.setOutput('version', newVersion)
-    core.setOutput('old_version', oldVersion)
-    core.setOutput('tag', gitTag)
-    core.setOutput('skipped', 'false')
-
-    if (createSummary) {
-      try {
-        await core.summary
-          .addHeading(gitTag, 2)
-          .addRaw(cleanChangelog)
-          .write()
-      } catch (err) {
-        core.warning(`Was unable to create summary! Error: "${err}"`)
-      }
-    }
-
-    try {
-      // If we are running in test mode we use this to validate everything still runs
-      git.testHistory(gitBranch)
-
-    } catch (error) {
-      console.error(error)
-
-      core.setFailed(error)
-    }
+    })
   } catch (error) {
     core.setFailed(error)
   }
@@ -269,6 +281,6 @@ process.on('unhandledRejection', (reason, promise) => {
   let error = `Unhandled Rejection occurred. ${reason.stack}`
   console.error(error)
   core.setFailed(error)
-})
+});
 
 run()

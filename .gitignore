@@ -67,6 +67,4 @@ typings/
 .next
 
 # build output
-lib
-
-node_modules
+#lib
