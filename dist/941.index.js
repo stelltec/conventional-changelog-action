@@ -3,7 +3,7 @@ exports.id = 941;
 exports.ids = [941];
 exports.modules = {
 
-/***/ 7941:
+/***/ 57941:
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
 
 // ESM COMPAT FLAG
@@ -16,13 +16,13 @@ __webpack_require__.d(__webpack_exports__, {
 });
 
 // EXTERNAL MODULE: external "node:path"
-var external_node_path_ = __webpack_require__(9411);
+var external_node_path_ = __webpack_require__(49411);
 // EXTERNAL MODULE: external "node:url"
-var external_node_url_ = __webpack_require__(1041);
+var external_node_url_ = __webpack_require__(41041);
 // EXTERNAL MODULE: external "node:process"
-var external_node_process_ = __webpack_require__(7742);
+var external_node_process_ = __webpack_require__(97742);
 // EXTERNAL MODULE: external "node:fs"
-var external_node_fs_ = __webpack_require__(7561);
+var external_node_fs_ = __webpack_require__(87561);
 ;// CONCATENATED MODULE: ./node_modules/yocto-queue/index.js
 /*
 How it works:
@@ -421,7 +421,7 @@ function findUpSync(name, options = {}) {
 
 
 // EXTERNAL MODULE: ./node_modules/read-pkg/index.js + 2 modules
-var read_pkg = __webpack_require__(581);
+var read_pkg = __webpack_require__(50581);
 ;// CONCATENATED MODULE: ./node_modules/read-pkg-up/index.js
 
 

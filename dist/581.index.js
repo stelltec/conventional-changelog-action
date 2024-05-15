@@ -2,13 +2,13 @@ exports.id = 581;
 exports.ids = [581];
 exports.modules = {
 
-/***/ 2068:
+/***/ 52068:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 /* module decorator */ module = __webpack_require__.nmd(module);
 
-const colorConvert = __webpack_require__(6931);
+const colorConvert = __webpack_require__(86931);
 
 const wrapAnsi16 = (fn, offset) => function () {
 	const code = fn.apply(colorConvert, arguments);
@@ -176,16 +176,16 @@ Object.defineProperty(module, 'exports', {
 
 /***/ }),
 
-/***/ 8707:
+/***/ 38707:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
-const escapeStringRegexp = __webpack_require__(8691);
-const ansiStyles = __webpack_require__(2068);
-const stdoutColor = (__webpack_require__(9318).stdout);
+const escapeStringRegexp = __webpack_require__(98691);
+const ansiStyles = __webpack_require__(52068);
+const stdoutColor = (__webpack_require__(59318).stdout);
 
-const template = __webpack_require__(2138);
+const template = __webpack_require__(52138);
 
 const isSimpleWindowsTerm = process.platform === 'win32' && !(process.env.TERM || '').toLowerCase().startsWith('xterm');
 
@@ -412,7 +412,7 @@ module.exports["default"] = module.exports; // For TypeScript
 
 /***/ }),
 
-/***/ 2138:
+/***/ 52138:
 /***/ ((module) => {
 
 "use strict";
@@ -548,11 +548,11 @@ module.exports = (chalk, tmp) => {
 
 /***/ }),
 
-/***/ 7391:
+/***/ 97391:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /* MIT license */
-var cssKeywords = __webpack_require__(8510);
+var cssKeywords = __webpack_require__(78510);
 
 // NOTE: conversions should only return primitive values (i.e. arrays, or
 //       values that give correct `typeof` results).
@@ -1423,11 +1423,11 @@ convert.rgb.gray = function (rgb) {
 
 /***/ }),
 
-/***/ 6931:
+/***/ 86931:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-var conversions = __webpack_require__(7391);
-var route = __webpack_require__(880);
+var conversions = __webpack_require__(97391);
+var route = __webpack_require__(30880);
 
 var convert = {};
 
@@ -1508,10 +1508,10 @@ module.exports = convert;
 
 /***/ }),
 
-/***/ 880:
+/***/ 30880:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-var conversions = __webpack_require__(7391);
+var conversions = __webpack_require__(97391);
 
 /*
 	this function routes a model to all other models.
@@ -1612,7 +1612,7 @@ module.exports = function (fromModel) {
 
 /***/ }),
 
-/***/ 8510:
+/***/ 78510:
 /***/ ((module) => {
 
 "use strict";
@@ -1772,13 +1772,13 @@ module.exports = {
 
 /***/ }),
 
-/***/ 3505:
+/***/ 23505:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-var util = __webpack_require__(3837);
+var util = __webpack_require__(73837);
 var isArrayish = __webpack_require__(7604);
 
 var errorEx = function errorEx(name, properties) {
@@ -1921,7 +1921,7 @@ module.exports = errorEx;
 
 /***/ }),
 
-/***/ 8691:
+/***/ 98691:
 /***/ ((module) => {
 
 "use strict";
@@ -1940,7 +1940,7 @@ module.exports = function (str) {
 
 /***/ }),
 
-/***/ 1621:
+/***/ 31621:
 /***/ ((module) => {
 
 "use strict";
@@ -1974,7 +1974,7 @@ module.exports = function isArrayish(obj) {
 
 /***/ }),
 
-/***/ 1531:
+/***/ 51531:
 /***/ ((__unused_webpack_module, exports) => {
 
 // Copyright 2014, 2015, 2016, 2017, 2018 Simon Lydell
@@ -2004,7 +2004,7 @@ exports.matchToToken = function(match) {
 
 /***/ }),
 
-/***/ 5054:
+/***/ 45054:
 /***/ ((module) => {
 
 "use strict";
@@ -2062,7 +2062,9 @@ const parseError = (e, txt, context = 20) => {
   let errIdx
   if (badIndexMatch) {
     errIdx = +badIndexMatch[1]
-  } else if (msg.match(/^Unexpected end of JSON.*/i)) {
+  } else /* istanbul ignore next - doesnt happen in Node 22 */ if (
+    msg.match(/^Unexpected end of JSON.*/i)
+  ) {
     errIdx = txt.length - 1
   }
 
@@ -2147,13 +2149,85 @@ parseJsonError.noExceptions = (raw, reviver) => {
 
 /***/ }),
 
-/***/ 9318:
+/***/ 37023:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+let argv = process.argv || [],
+	env = process.env
+let isColorSupported =
+	!("NO_COLOR" in env || argv.includes("--no-color")) &&
+	("FORCE_COLOR" in env ||
+		argv.includes("--color") ||
+		process.platform === "win32" ||
+		(require != null && (__webpack_require__(76224).isatty)(1) && env.TERM !== "dumb") ||
+		"CI" in env)
+
+let formatter =
+	(open, close, replace = open) =>
+	input => {
+		let string = "" + input
+		let index = string.indexOf(close, open.length)
+		return ~index
+			? open + replaceClose(string, close, replace, index) + close
+			: open + string + close
+	}
+
+let replaceClose = (string, close, replace, index) => {
+	let result = ""
+	let cursor = 0
+	do {
+		result += string.substring(cursor, index) + replace
+		cursor = index + close.length
+		index = string.indexOf(close, cursor)
+	} while (~index)
+	return result + string.substring(cursor)
+}
+
+let createColors = (enabled = isColorSupported) => {
+	let init = enabled ? formatter : () => String
+	return {
+		isColorSupported: enabled,
+		reset: init("\x1b[0m", "\x1b[0m"),
+		bold: init("\x1b[1m", "\x1b[22m", "\x1b[22m\x1b[1m"),
+		dim: init("\x1b[2m", "\x1b[22m", "\x1b[22m\x1b[2m"),
+		italic: init("\x1b[3m", "\x1b[23m"),
+		underline: init("\x1b[4m", "\x1b[24m"),
+		inverse: init("\x1b[7m", "\x1b[27m"),
+		hidden: init("\x1b[8m", "\x1b[28m"),
+		strikethrough: init("\x1b[9m", "\x1b[29m"),
+		black: init("\x1b[30m", "\x1b[39m"),
+		red: init("\x1b[31m", "\x1b[39m"),
+		green: init("\x1b[32m", "\x1b[39m"),
+		yellow: init("\x1b[33m", "\x1b[39m"),
+		blue: init("\x1b[34m", "\x1b[39m"),
+		magenta: init("\x1b[35m", "\x1b[39m"),
+		cyan: init("\x1b[36m", "\x1b[39m"),
+		white: init("\x1b[37m", "\x1b[39m"),
+		gray: init("\x1b[90m", "\x1b[39m"),
+		bgBlack: init("\x1b[40m", "\x1b[49m"),
+		bgRed: init("\x1b[41m", "\x1b[49m"),
+		bgGreen: init("\x1b[42m", "\x1b[49m"),
+		bgYellow: init("\x1b[43m", "\x1b[49m"),
+		bgBlue: init("\x1b[44m", "\x1b[49m"),
+		bgMagenta: init("\x1b[45m", "\x1b[49m"),
+		bgCyan: init("\x1b[46m", "\x1b[49m"),
+		bgWhite: init("\x1b[47m", "\x1b[49m"),
+	}
+}
+
+module.exports = createColors()
+module.exports.createColors = createColors
+
+
+/***/ }),
+
+/***/ 59318:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
-const os = __webpack_require__(2037);
-const hasFlag = __webpack_require__(1621);
+const os = __webpack_require__(22037);
+const hasFlag = __webpack_require__(31621);
 
 const env = process.env;
 
@@ -2286,7 +2360,7 @@ module.exports = {
 
 /***/ }),
 
-/***/ 1322:
+/***/ 41322:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
@@ -2298,28 +2372,27 @@ __webpack_unused_export__ = ({
 });
 exports.rf = codeFrameColumns;
 __webpack_unused_export__ = _default;
-var _highlight = __webpack_require__(7654);
-var _chalk = _interopRequireWildcard(__webpack_require__(8707), true);
+var _highlight = __webpack_require__(87654);
+var _picocolors = _interopRequireWildcard(__webpack_require__(37023), true);
 function _getRequireWildcardCache(e) { if ("function" != typeof WeakMap) return null; var r = new WeakMap(), t = new WeakMap(); return (_getRequireWildcardCache = function (e) { return e ? t : r; })(e); }
 function _interopRequireWildcard(e, r) { if (!r && e && e.__esModule) return e; if (null === e || "object" != typeof e && "function" != typeof e) return { default: e }; var t = _getRequireWildcardCache(r); if (t && t.has(e)) return t.get(e); var n = { __proto__: null }, a = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var u in e) if ("default" !== u && Object.prototype.hasOwnProperty.call(e, u)) { var i = a ? Object.getOwnPropertyDescriptor(e, u) : null; i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u]; } return n.default = e, t && t.set(e, n), n; }
-let chalkWithForcedColor = undefined;
-function getChalk(forceColor) {
+const colors = typeof process === "object" && (process.env.FORCE_COLOR === "0" || process.env.FORCE_COLOR === "false") ? (0, _picocolors.createColors)(false) : _picocolors.default;
+const compose = (f, g) => v => f(g(v));
+let pcWithForcedColor = undefined;
+function getColors(forceColor) {
   if (forceColor) {
-    var _chalkWithForcedColor;
-    (_chalkWithForcedColor = chalkWithForcedColor) != null ? _chalkWithForcedColor : chalkWithForcedColor = new _chalk.default.constructor({
-      enabled: true,
-      level: 1
-    });
-    return chalkWithForcedColor;
+    var _pcWithForcedColor;
+    (_pcWithForcedColor = pcWithForcedColor) != null ? _pcWithForcedColor : pcWithForcedColor = (0, _picocolors.createColors)(true);
+    return pcWithForcedColor;
   }
-  return _chalk.default;
+  return colors;
 }
 let deprecationWarningShown = false;
-function getDefs(chalk) {
+function getDefs(colors) {
   return {
-    gutter: chalk.grey,
-    marker: chalk.red.bold,
-    message: chalk.red.bold
+    gutter: colors.gray,
+    marker: compose(colors.red, colors.bold),
+    message: compose(colors.red, colors.bold)
   };
 }
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
@@ -2381,10 +2454,10 @@ function getMarkerLines(loc, source, opts) {
 }
 function codeFrameColumns(rawLines, loc, opts = {}) {
   const highlighted = (opts.highlightCode || opts.forceColor) && (0, _highlight.shouldHighlight)(opts);
-  const chalk = getChalk(opts.forceColor);
-  const defs = getDefs(chalk);
-  const maybeHighlight = (chalkFn, string) => {
-    return highlighted ? chalkFn(string) : string;
+  const colors = getColors(opts.forceColor);
+  const defs = getDefs(colors);
+  const maybeHighlight = (fmt, string) => {
+    return highlighted ? fmt(string) : string;
   };
   const lines = rawLines.split(NEWLINE);
   const {
@@ -2420,7 +2493,7 @@ function codeFrameColumns(rawLines, loc, opts = {}) {
     frame = `${" ".repeat(numberMaxWidth + 1)}${opts.message}\n${frame}`;
   }
   if (highlighted) {
-    return chalk.reset(frame);
+    return colors.reset(frame);
   } else {
     return frame;
   }
@@ -2452,7 +2525,7 @@ function _default(rawLines, lineNumber, colNumber, opts = {}) {
 
 /***/ }),
 
-/***/ 8875:
+/***/ 28875:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -2587,15 +2660,15 @@ Object.defineProperty(exports, "isStrictReservedWord", ({
     return _keyword.isStrictReservedWord;
   }
 }));
-var _identifier = __webpack_require__(8875);
-var _keyword = __webpack_require__(17);
+var _identifier = __webpack_require__(28875);
+var _keyword = __webpack_require__(50017);
 
 //# sourceMappingURL=index.js.map
 
 
 /***/ }),
 
-/***/ 17:
+/***/ 50017:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -2638,7 +2711,7 @@ function isKeyword(word) {
 
 /***/ }),
 
-/***/ 7654:
+/***/ 87654:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
@@ -2649,23 +2722,25 @@ Object.defineProperty(exports, "__esModule", ({
 }));
 exports["default"] = highlight;
 exports.shouldHighlight = shouldHighlight;
-var _jsTokens = __webpack_require__(1531);
+var _jsTokens = __webpack_require__(51531);
 var _helperValidatorIdentifier = __webpack_require__(2738);
-var _chalk = _interopRequireWildcard(__webpack_require__(8707), true);
+var _picocolors = _interopRequireWildcard(__webpack_require__(37023), true);
 function _getRequireWildcardCache(e) { if ("function" != typeof WeakMap) return null; var r = new WeakMap(), t = new WeakMap(); return (_getRequireWildcardCache = function (e) { return e ? t : r; })(e); }
-function _interopRequireWildcard(e, r) { if (!r && e && e.__esModule) return e; if (null === e || "object" != typeof e && "function" != typeof e) return { default: e }; var t = _getRequireWildcardCache(r); if (t && t.has(e)) return t.get(e); var n = { __proto__: null }, a = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var u in e) if ("default" !== u && Object.prototype.hasOwnProperty.call(e, u)) { var i = a ? Object.getOwnPropertyDescriptor(e, u) : null; i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u]; } return n.default = e, t && t.set(e, n), n; }
+function _interopRequireWildcard(e, r) { if (!r && e && e.__esModule) return e; if (null === e || "object" != typeof e && "function" != typeof e) return { default: e }; var t = _getRequireWildcardCache(r); if (t && t.has(e)) return t.get(e); var n = { __proto__: null }, a = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var u in e) if ("default" !== u && {}.hasOwnProperty.call(e, u)) { var i = a ? Object.getOwnPropertyDescriptor(e, u) : null; i && (i.get || i.set) ? Object.defineProperty(n, u, i) : n[u] = e[u]; } return n.default = e, t && t.set(e, n), n; }
+const colors = typeof process === "object" && (process.env.FORCE_COLOR === "0" || process.env.FORCE_COLOR === "false") ? (0, _picocolors.createColors)(false) : _picocolors.default;
+const compose = (f, g) => v => f(g(v));
 const sometimesKeywords = new Set(["as", "async", "from", "get", "of", "set"]);
-function getDefs(chalk) {
+function getDefs(colors) {
   return {
-    keyword: chalk.cyan,
-    capitalized: chalk.yellow,
-    jsxIdentifier: chalk.yellow,
-    punctuator: chalk.yellow,
-    number: chalk.magenta,
-    string: chalk.green,
-    regex: chalk.magenta,
-    comment: chalk.grey,
-    invalid: chalk.white.bgRed.bold
+    keyword: colors.cyan,
+    capitalized: colors.yellow,
+    jsxIdentifier: colors.yellow,
+    punctuator: colors.yellow,
+    number: colors.magenta,
+    string: colors.green,
+    regex: colors.magenta,
+    comment: colors.gray,
+    invalid: compose(compose(colors.white, colors.bgRed), colors.bold)
   };
 }
 const NEWLINE = /\r\n|[\n\r\u2028\u2029]/;
@@ -2678,7 +2753,7 @@ let tokenize;
       if ((0, _helperValidatorIdentifier.isKeyword)(token.value) || (0, _helperValidatorIdentifier.isStrictReservedWord)(token.value, true) || sometimesKeywords.has(token.value)) {
         return "keyword";
       }
-      if (JSX_TAG.test(token.value) && (text[offset - 1] === "<" || text.slice(offset - 2, offset) == "</")) {
+      if (JSX_TAG.test(token.value) && (text[offset - 1] === "<" || text.slice(offset - 2, offset) === "</")) {
         return "jsxIdentifier";
       }
       if (token.value[0] !== token.value[0].toLowerCase()) {
@@ -2720,30 +2795,42 @@ function highlightTokens(defs, text) {
   return highlighted;
 }
 function shouldHighlight(options) {
-  return _chalk.default.level > 0 || options.forceColor;
+  return colors.isColorSupported || options.forceColor;
 }
-let chalkWithForcedColor = undefined;
-function getChalk(forceColor) {
+let pcWithForcedColor = undefined;
+function getColors(forceColor) {
   if (forceColor) {
-    var _chalkWithForcedColor;
-    (_chalkWithForcedColor = chalkWithForcedColor) != null ? _chalkWithForcedColor : chalkWithForcedColor = new _chalk.default.constructor({
-      enabled: true,
-      level: 1
-    });
-    return chalkWithForcedColor;
+    var _pcWithForcedColor;
+    (_pcWithForcedColor = pcWithForcedColor) != null ? _pcWithForcedColor : pcWithForcedColor = (0, _picocolors.createColors)(true);
+    return pcWithForcedColor;
   }
-  return _chalk.default;
-}
-{
-  exports.getChalk = options => getChalk(options.forceColor);
+  return colors;
 }
 function highlight(code, options = {}) {
   if (code !== "" && shouldHighlight(options)) {
-    const defs = getDefs(getChalk(options.forceColor));
+    const defs = getDefs(getColors(options.forceColor));
     return highlightTokens(defs, code);
   } else {
     return code;
   }
+}
+{
+  let chalk, chalkWithForcedColor;
+  exports.getChalk = ({
+    forceColor
+  }) => {
+    var _chalk;
+    (_chalk = chalk) != null ? _chalk : chalk = __webpack_require__(38707);
+    if (forceColor) {
+      var _chalkWithForcedColor;
+      (_chalkWithForcedColor = chalkWithForcedColor) != null ? _chalkWithForcedColor : chalkWithForcedColor = new chalk.constructor({
+        enabled: true,
+        level: 1
+      });
+      return chalkWithForcedColor;
+    }
+    return chalk;
+  };
 }
 
 //# sourceMappingURL=index.js.map
@@ -2751,7 +2838,7 @@ function highlight(code, options = {}) {
 
 /***/ }),
 
-/***/ 581:
+/***/ 50581:
 /***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
 
 "use strict";
@@ -2766,19 +2853,19 @@ __webpack_require__.d(__webpack_exports__, {
 });
 
 // EXTERNAL MODULE: external "node:fs"
-var external_node_fs_ = __webpack_require__(7561);
+var external_node_fs_ = __webpack_require__(87561);
 // EXTERNAL MODULE: external "node:fs/promises"
-var promises_ = __webpack_require__(3977);
+var promises_ = __webpack_require__(93977);
 // EXTERNAL MODULE: external "node:path"
-var external_node_path_ = __webpack_require__(9411);
+var external_node_path_ = __webpack_require__(49411);
 // EXTERNAL MODULE: external "node:url"
-var external_node_url_ = __webpack_require__(1041);
+var external_node_url_ = __webpack_require__(41041);
 // EXTERNAL MODULE: ./node_modules/error-ex/index.js
-var error_ex = __webpack_require__(3505);
+var error_ex = __webpack_require__(23505);
 // EXTERNAL MODULE: ./node_modules/json-parse-even-better-errors/lib/index.js
-var lib = __webpack_require__(5054);
+var lib = __webpack_require__(45054);
 // EXTERNAL MODULE: ./node_modules/@babel/code-frame/lib/index.js
-var code_frame_lib = __webpack_require__(1322);
+var code_frame_lib = __webpack_require__(41322);
 ;// CONCATENATED MODULE: ./node_modules/lines-and-columns/build/index.mjs
 var LF = '\n';
 var CR = '\r';
@@ -2907,7 +2994,7 @@ function parseJson(string, reviver, filename) {
 }
 
 // EXTERNAL MODULE: ./node_modules/normalize-package-data/lib/normalize.js
-var lib_normalize = __webpack_require__(3188);
+var lib_normalize = __webpack_require__(53188);
 ;// CONCATENATED MODULE: ./node_modules/read-pkg/index.js
 
 
