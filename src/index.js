@@ -57,6 +57,7 @@ async function run() {
     const skipCi = core.getBooleanInput('skip-ci')
     const createSummary = core.getBooleanInput('create-summary')
     const prerelease = core.getBooleanInput('pre-release')
+    const qaRelease = core.getBooleanInput('qa-release')
 
     if (skipCi) {
       gitCommitMessage += ' [skip ci]'
