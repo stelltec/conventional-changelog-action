@@ -99,7 +99,10 @@ async function run() {
         core.setFailed(error.message)
         return
       }
-
+      
+      if(qaRelease){
+        recommendation.releaseType = 'minor'
+      }
       core.info(`Recommended release type: ${recommendation.releaseType}`)
 
       // If we have a reason also log it
