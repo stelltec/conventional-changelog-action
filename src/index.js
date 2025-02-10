@@ -99,10 +99,12 @@ async function run() {
         core.setFailed(error.message)
         return
       }
-      
+
       if(qaRelease){
+        // for QA Release we always want to bump the minor version .e.g 9.X.0-0 -> 9.Y.0-0
         recommendation.releaseType = 'minor'
       }
+
       core.info(`Recommended release type: ${recommendation.releaseType}`)
 
       // If we have a reason also log it
